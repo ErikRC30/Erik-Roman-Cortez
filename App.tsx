@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Task, Priority, StatusFilter } from './types';
 import Header from './components/Header';
 import AddTaskForm from './components/AddTaskForm';
@@ -36,7 +36,44 @@ const App: React.FC = () => {
     }
   }, [tasks]);
 
-  const addTask = (title: string, description: string, priority: Priority, deadline?: string) => {
+  const updateTask = useCallback((id: number, updates: Partial<Omit<Task, 'id' | 'comments'>>) => {
+    setTasks(prevTasks => prevTasks.map(task =>
+      task.id === id ? { ...task, ...updates } : task
+    ));
+  }, []);
+  
+  useEffect(() => {
+    const showNotification = (task: Task) => {
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification(`Recordatorio: ${task.title}`, {
+            body: task.description || 'Es hora de empezar tu tarea.',
+            icon: '/vite.svg',
+          });
+        }
+      }
+    };
+    
+    const checkReminders = () => {
+      const now = new Date();
+      tasks.forEach(task => {
+        if (task.reminder && !task.completed) {
+          const reminderTime = new Date(task.reminder);
+          if (now >= reminderTime) {
+            showNotification(task);
+            updateTask(task.id, { reminder: undefined });
+          }
+        }
+      });
+    };
+
+    const intervalId = setInterval(checkReminders, 30000); // Check every 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [tasks, updateTask]);
+
+
+  const addTask = useCallback((title: string, description: string, priority: Priority, deadline?: string, reminder?: string) => {
     const newTask: Task = {
       id: Date.now(),
       title,
@@ -45,38 +82,33 @@ const App: React.FC = () => {
       priority,
       completed: false,
       deadline: deadline || undefined,
+      reminder: reminder || undefined,
     };
     setTasks(prevTasks => [newTask, ...prevTasks]);
-  };
+  }, []);
   
-  const addComment = (taskId: number, text: string) => {
+  const addComment = useCallback((taskId: number, text: string) => {
     const newComment = {
       id: Date.now(),
       text,
       createdAt: new Date().toISOString(),
     };
-    setTasks(tasks.map(task => 
+    setTasks(prevTasks => prevTasks.map(task => 
       task.id === taskId 
         ? { ...task, comments: [...task.comments, newComment] }
         : task
     ));
-  };
+  }, []);
 
-  const deleteTask = (id: number) => {
-    setTasks(tasks.filter(task => task.id !== id));
-  };
+  const deleteTask = useCallback((id: number) => {
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+  }, []);
 
-  const toggleTaskCompletion = (id: number) => {
-    setTasks(tasks.map(task => 
+  const toggleTaskCompletion = useCallback((id: number) => {
+    setTasks(prevTasks => prevTasks.map(task => 
       task.id === id ? { ...task, completed: !task.completed } : task
     ));
-  };
-
-  const updateTask = (id: number, updates: { title: string; description: string; priority: Priority; deadline?: string }) => {
-    setTasks(tasks.map(task =>
-      task.id === id ? { ...task, ...updates } : task
-    ));
-  };
+  }, []);
 
   const handleFilterChange = (type: 'status' | 'priority', value: StatusFilter | Priority | 'all') => {
     if (type === 'status') {

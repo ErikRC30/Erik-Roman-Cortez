@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Task, Priority } from '../types';
-import { MailIcon, WhatsAppIcon, TrashIcon, PaperAirplaneIcon, XMarkIcon, CalendarIcon, PencilIcon } from './Icons';
+import { MailIcon, WhatsAppIcon, TrashIcon, PaperAirplaneIcon, XMarkIcon, CalendarIcon, PencilIcon, BellIcon } from './Icons';
 
 interface TaskItemProps {
   task: Task;
   onAddComment: (id: number, text: string) => void;
   onDelete: (id: number) => void;
   onToggleComplete: (id: number) => void;
-  onUpdateTask: (id: number, updates: { title: string; description: string; priority: Priority; deadline?: string }) => void;
+  onUpdateTask: (id: number, updates: Partial<Omit<Task, 'id' | 'comments'>>) => void;
 }
 
 const priorityStyles: {
@@ -54,12 +54,12 @@ const PriorityBadge: React.FC<{ priority: Task['priority'], completed?: boolean 
 };
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onToggleComplete, onUpdateTask }) => {
-  const { id, title, description, comments, priority, completed, deadline } = task;
+  const { id, title, description, comments, priority, completed, deadline, reminder } = task;
   const [newComment, setNewComment] = useState('');
   const [isEmailInputVisible, setIsEmailInputVisible] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [editedTask, setEditedTask] = useState({ title, description, priority, deadline: deadline || '' });
+  const [editedTask, setEditedTask] = useState({ title, description, priority, deadline: deadline || '', reminder: reminder || '' });
 
   const getDeadlineInfo = () => {
     if (!deadline) return null;
@@ -136,23 +136,33 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
       onUpdateTask(id, {
         ...editedTask,
         deadline: editedTask.deadline || undefined,
+        reminder: editedTask.reminder || undefined,
       });
       setIsEditing(false);
     }
   };
 
   const handleCancel = () => {
-    setEditedTask({ title, description, priority, deadline: deadline || '' });
+    setEditedTask({ title, description, priority, deadline: deadline || '', reminder: reminder || '' });
     setIsEditing(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    if (name === 'reminder' && value && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     setEditedTask(prev => ({ ...prev, [name]: value }));
   };
 
   const handlePriorityChange = (newPriority: Priority) => {
     setEditedTask(prev => ({ ...prev, priority: newPriority }));
+  };
+
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 1);
+    return now.toISOString().slice(0, 16);
   };
 
   const currentPriorityStyles = priorityStyles[priority];
@@ -201,17 +211,31 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
               ))}
             </div>
           </div>
-          <div>
-            <label htmlFor={`deadline-${id}`} className="block text-sm font-medium text-slate-600 mb-1">Fecha Límite (Opcional)</label>
-            <input
-              type="date"
-              id={`deadline-${id}`}
-              name="deadline"
-              value={editedTask.deadline}
-              onChange={handleInputChange}
-              className="w-full p-2 bg-white rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              min={new Date().toISOString().split('T')[0]}
-            />
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor={`deadline-${id}`} className="block text-sm font-medium text-slate-600 mb-1">Fecha Límite (Opcional)</label>
+              <input
+                type="date"
+                id={`deadline-${id}`}
+                name="deadline"
+                value={editedTask.deadline}
+                onChange={handleInputChange}
+                className="w-full p-2 bg-white rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div>
+              <label htmlFor={`reminder-${id}`} className="block text-sm font-medium text-slate-600 mb-1">Recordatorio (Opcional)</label>
+              <input
+                type="datetime-local"
+                id={`reminder-${id}`}
+                name="reminder"
+                value={editedTask.reminder}
+                onChange={handleInputChange}
+                className="w-full p-2 bg-white rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                min={getMinDateTime()}
+              />
+            </div>
           </div>
           <div className="flex justify-end items-center mt-4 space-x-3">
             <button
@@ -262,13 +286,21 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
                 </span>
               </div>
             )}
+            {reminder && !completed && (
+              <div className="mt-2 flex items-center text-sm text-indigo-600">
+                <BellIcon className="w-4 h-4 mr-1.5" />
+                <span>
+                  Recordatorio para el {new Date(reminder).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center flex-shrink-0 ml-4">
           <button
             onClick={() => {
               setIsEditing(true);
-              setEditedTask({ title, description, priority, deadline: deadline || '' });
+              setEditedTask({ title, description, priority, deadline: deadline || '', reminder: reminder || '' });
             }}
             className="p-2 rounded-full text-slate-400 hover:bg-blue-100 hover:text-blue-600 transition-colors"
             aria-label="Editar tarea"

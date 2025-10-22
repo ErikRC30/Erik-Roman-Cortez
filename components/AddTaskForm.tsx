@@ -3,7 +3,7 @@ import { PlusIcon } from './Icons';
 import { Priority } from '../types';
 
 interface AddTaskFormProps {
-  onAddTask: (title: string, description: string, priority: Priority, deadline?: string) => void;
+  onAddTask: (title: string, description: string, priority: Priority, deadline?: string, reminder?: string) => void;
 }
 
 const priorityClasses: { [key in Priority]: { labelChecked: string, radio: string } } = {
@@ -26,18 +26,33 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ onAddTask }) => {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('Media');
   const [deadline, setDeadline] = useState('');
+  const [reminder, setReminder] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
-      onAddTask(title.trim(), description.trim(), priority, deadline);
+      onAddTask(title.trim(), description.trim(), priority, deadline, reminder);
       setTitle('');
       setDescription('');
       setPriority('Media');
       setDeadline('');
+      setReminder('');
       setIsExpanded(false);
     }
+  };
+
+  const handleReminderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setReminder(e.target.value);
+    if (e.target.value && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  };
+
+  const getMinDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 1);
+    return now.toISOString().slice(0, 16);
   };
 
   return (
@@ -79,17 +94,30 @@ const AddTaskForm: React.FC<AddTaskFormProps> = ({ onAddTask }) => {
                     ))}
                 </div>
             </div>
-
-            <div className="mt-4">
-                <label htmlFor="deadline" className="block text-sm font-medium text-slate-600 mb-2">Fecha Límite (Opcional)</label>
-                <input
-                    type="date"
-                    id="deadline"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full p-2 bg-slate-50 rounded-md border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                    min={new Date().toISOString().split('T')[0]}
-                />
+            
+            <div className="grid md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label htmlFor="deadline" className="block text-sm font-medium text-slate-600 mb-2">Fecha Límite (Opcional)</label>
+                    <input
+                        type="date"
+                        id="deadline"
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        className="w-full p-2 bg-slate-50 rounded-md border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        min={new Date().toISOString().split('T')[0]}
+                    />
+                </div>
+                 <div>
+                    <label htmlFor="reminder" className="block text-sm font-medium text-slate-600 mb-2">Recordatorio (Opcional)</label>
+                    <input
+                        type="datetime-local"
+                        id="reminder"
+                        value={reminder}
+                        onChange={handleReminderChange}
+                        className="w-full p-2 bg-slate-50 rounded-md border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                        min={getMinDateTime()}
+                    />
+                </div>
             </div>
 
             <div className="flex justify-end items-center mt-4 space-x-3">

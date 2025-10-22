@@ -16,4 +16,5 @@ export interface Task {
   priority: Priority;
   completed: boolean;
   deadline?: string; // YYYY-MM-DD date string
+  reminder?: string; // ISO datetime string
 }
