@@ -1,0 +1,5 @@
+{
+  "name": "Task Manager Pro",
+  "description": "A modern and intuitive web application to manage tasks and activities, track progress, and send reminders via email or WhatsApp.",
+  "requestFramePermissions": []
+}
