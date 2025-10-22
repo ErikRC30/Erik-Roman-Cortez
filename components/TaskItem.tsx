@@ -45,9 +45,9 @@ const priorityClasses: { [key in Priority]: { labelChecked: string, radio: strin
 };
 
 
-const PriorityBadge: React.FC<{ priority: Task['priority'] }> = ({ priority }) => {
+const PriorityBadge: React.FC<{ priority: Task['priority'], completed?: boolean }> = ({ priority, completed }) => {
     return (
-        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${priorityStyles[priority].badge}`}>
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${priorityStyles[priority].badge} ${completed ? 'line-through' : ''}`}>
             {priority}
         </span>
     );
@@ -236,7 +236,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
   }
 
   return (
-    <div className={`p-5 rounded-xl shadow-md border hover:shadow-lg transition-all duration-300 flex flex-col space-y-4 ${completed ? 'opacity-60 bg-slate-100 border-slate-200' : `${currentPriorityStyles.background} ${currentPriorityStyles.border}`}`}>
+    <div className={`p-5 rounded-xl border transition-all duration-300 flex flex-col space-y-4 ${completed ? 'bg-slate-50 border-slate-200 border-dashed opacity-70 shadow-sm' : `${currentPriorityStyles.background} ${currentPriorityStyles.border} shadow-md hover:shadow-lg`}`}>
       <div className="flex justify-between items-start">
         <div className="flex-grow flex items-start gap-4">
           <input
@@ -251,13 +251,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
                <h3 id={`task-title-${id}`} className={`text-lg font-bold text-slate-800 ${completed ? 'line-through' : ''}`}>
                   {title}
                </h3>
-               <PriorityBadge priority={priority} />
+               <PriorityBadge priority={priority} completed={completed} />
             </div>
             <p className={`text-slate-600 text-sm mb-2 ${completed ? 'line-through' : ''}`}>{description}</p>
             {deadlineInfo && (
               <div className="mt-2 flex items-center text-sm">
                 <CalendarIcon className="w-4 h-4 mr-1.5 text-slate-400" />
-                <span className={deadlineInfo.statusClass}>
+                <span className={`${deadlineInfo.statusClass} ${completed ? 'line-through' : ''}`}>
                   {deadlineInfo.statusText ? `${deadlineInfo.statusText} el ${deadlineInfo.formattedDate}` : deadlineInfo.formattedDate}
                 </span>
               </div>
