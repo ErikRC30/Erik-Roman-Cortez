@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Task, Priority } from './types';
+import { Task, Priority, StatusFilter } from './types';
 import Header from './components/Header';
 import AddTaskForm from './components/AddTaskForm';
 import TaskItem from './components/TaskItem';
+import Filter from './components/Filter';
 import { CheckCircleIcon } from './components/Icons';
 
 const App: React.FC = () => {
@@ -22,6 +23,10 @@ const App: React.FC = () => {
       return [];
     }
   });
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     try {
@@ -67,15 +72,51 @@ const App: React.FC = () => {
     ));
   };
 
-  const sortedTasks = useMemo(() => {
+  const updateTask = (id: number, updates: { title: string; description: string; priority: Priority; deadline?: string }) => {
+    setTasks(tasks.map(task =>
+      task.id === id ? { ...task, ...updates } : task
+    ));
+  };
+
+  const handleFilterChange = (type: 'status' | 'priority', value: StatusFilter | Priority | 'all') => {
+    if (type === 'status') {
+      setStatusFilter(value as StatusFilter);
+    } else if (type === 'priority') {
+      setPriorityFilter(value as Priority | 'all');
+    }
+  };
+  
+  const handleSearchChange = (query: string) => {
+    setSearchTerm(query);
+  };
+
+  const filteredAndSortedTasks = useMemo(() => {
     const priorityOrder: { [key in Priority]: number } = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
-    return [...tasks].sort((a, b) => {
+
+    const filtered = tasks.filter(task => {
+        const statusMatch = 
+            statusFilter === 'all' ||
+            (statusFilter === 'completed' && task.completed) ||
+            (statusFilter === 'pending' && !task.completed);
+        
+        const priorityMatch =
+            priorityFilter === 'all' || task.priority === priorityFilter;
+        
+        const searchMatch = 
+            !searchTerm ||
+            task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+        return statusMatch && priorityMatch && searchMatch;
+    });
+
+    return [...filtered].sort((a, b) => {
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
       return priorityOrder[a.priority] - priorityOrder[b.priority];
     });
-  }, [tasks]);
+  }, [tasks, statusFilter, priorityFilter, searchTerm]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -83,19 +124,34 @@ const App: React.FC = () => {
       <main className="container mx-auto p-4 md:p-8 max-w-4xl">
         <AddTaskForm onAddTask={addTask} />
         <div className="mt-8">
-          <h2 className="text-2xl font-bold text-slate-700 mb-6">Mis Actividades</h2>
-          {sortedTasks.length > 0 ? (
-            <div className="space-y-4">
-              {sortedTasks.map(task => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  onAddComment={addComment}
-                  onDelete={deleteTask}
-                  onToggleComplete={toggleTaskCompletion}
-                />
-              ))}
-            </div>
+          <h2 className="text-2xl font-bold text-slate-700 mb-4">Mis Actividades</h2>
+          <Filter 
+            statusFilter={statusFilter}
+            priorityFilter={priorityFilter}
+            searchTerm={searchTerm}
+            onFilterChange={handleFilterChange}
+            onSearchChange={handleSearchChange}
+          />
+          {tasks.length > 0 ? (
+            filteredAndSortedTasks.length > 0 ? (
+                <div className="space-y-4">
+                  {filteredAndSortedTasks.map(task => (
+                    <TaskItem
+                      key={task.id}
+                      task={task}
+                      onAddComment={addComment}
+                      onDelete={deleteTask}
+                      onToggleComplete={toggleTaskCompletion}
+                      onUpdateTask={updateTask}
+                    />
+                  ))}
+                </div>
+            ) : (
+                <div className="text-center bg-white p-12 rounded-xl shadow-sm border border-slate-200">
+                    <h3 className="text-xl font-semibold text-slate-600">No hay tareas que coincidan</h3>
+                    <p className="text-slate-500 mt-2">Prueba a cambiar los filtros o el término de búsqueda.</p>
+                </div>
+            )
           ) : (
             <div className="text-center bg-white p-12 rounded-xl shadow-sm border border-slate-200">
                 <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />

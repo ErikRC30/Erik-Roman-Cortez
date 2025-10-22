@@ -1,5 +1,7 @@
 export type Priority = 'Baja' | 'Media' | 'Alta';
 
+export type StatusFilter = 'all' | 'pending' | 'completed';
+
 export interface Comment {
   id: number;
   text: string;

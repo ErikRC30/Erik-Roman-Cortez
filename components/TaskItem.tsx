@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Task } from '../types';
-import { MailIcon, WhatsAppIcon, TrashIcon, PaperAirplaneIcon, XMarkIcon, CalendarIcon } from './Icons';
+import { Task, Priority } from '../types';
+import { MailIcon, WhatsAppIcon, TrashIcon, PaperAirplaneIcon, XMarkIcon, CalendarIcon, PencilIcon } from './Icons';
 
 interface TaskItemProps {
   task: Task;
   onAddComment: (id: number, text: string) => void;
   onDelete: (id: number) => void;
   onToggleComplete: (id: number) => void;
+  onUpdateTask: (id: number, updates: { title: string; description: string; priority: Priority; deadline?: string }) => void;
 }
 
 const priorityStyles: {
@@ -37,6 +38,12 @@ const priorityStyles: {
     },
 };
 
+const priorityClasses: { [key in Priority]: { labelChecked: string, radio: string } } = {
+  Baja: { labelChecked: 'bg-blue-50 border-blue-400', radio: 'text-blue-600' },
+  Media: { labelChecked: 'bg-amber-50 border-amber-400', radio: 'text-amber-600' },
+  Alta: { labelChecked: 'bg-red-50 border-red-400', radio: 'text-red-600' },
+};
+
 
 const PriorityBadge: React.FC<{ priority: Task['priority'] }> = ({ priority }) => {
     return (
@@ -46,11 +53,13 @@ const PriorityBadge: React.FC<{ priority: Task['priority'] }> = ({ priority }) =
     );
 };
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onToggleComplete }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onToggleComplete, onUpdateTask }) => {
   const { id, title, description, comments, priority, completed, deadline } = task;
   const [newComment, setNewComment] = useState('');
   const [isEmailInputVisible, setIsEmailInputVisible] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTask, setEditedTask] = useState({ title, description, priority, deadline: deadline || '' });
 
   const getDeadlineInfo = () => {
     if (!deadline) return null;
@@ -122,7 +131,109 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
     }
   };
 
+  const handleSave = () => {
+    if (editedTask.title.trim()) {
+      onUpdateTask(id, {
+        ...editedTask,
+        deadline: editedTask.deadline || undefined,
+      });
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedTask({ title, description, priority, deadline: deadline || '' });
+    setIsEditing(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditedTask(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePriorityChange = (newPriority: Priority) => {
+    setEditedTask(prev => ({ ...prev, priority: newPriority }));
+  };
+
   const currentPriorityStyles = priorityStyles[priority];
+
+  if (isEditing) {
+    return (
+      <div className={`p-5 rounded-xl shadow-md border animate-fade-in ${priorityStyles[editedTask.priority].background} ${priorityStyles[editedTask.priority].border}`}>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor={`title-${id}`} className="block text-sm font-medium text-slate-600 mb-1">Título</label>
+            <input
+              type="text"
+              id={`title-${id}`}
+              name="title"
+              value={editedTask.title}
+              onChange={handleInputChange}
+              className="w-full p-2 text-lg font-medium bg-white rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label htmlFor={`description-${id}`} className="block text-sm font-medium text-slate-600 mb-1">Descripción</label>
+            <textarea
+              id={`description-${id}`}
+              name="description"
+              value={editedTask.description}
+              onChange={handleInputChange}
+              className="w-full p-2 bg-white rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              rows={3}
+            ></textarea>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-2">Prioridad</label>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              {(['Baja', 'Media', 'Alta'] as Priority[]).map((level) => (
+                <label key={level} className={`flex-1 flex items-center space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-all ${editedTask.priority === level ? priorityClasses[level].labelChecked : 'border-slate-200 bg-white'}`}>
+                  <input
+                    type="radio"
+                    name={`priority-${id}`}
+                    value={level}
+                    checked={editedTask.priority === level}
+                    onChange={() => handlePriorityChange(level)}
+                    className={`form-radio h-5 w-5 transition duration-150 ease-in-out ${priorityClasses[level].radio}`}
+                  />
+                  <span className="font-medium text-slate-700">{level}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label htmlFor={`deadline-${id}`} className="block text-sm font-medium text-slate-600 mb-1">Fecha Límite (Opcional)</label>
+            <input
+              type="date"
+              id={`deadline-${id}`}
+              name="deadline"
+              value={editedTask.deadline}
+              onChange={handleInputChange}
+              className="w-full p-2 bg-white rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+          <div className="flex justify-end items-center mt-4 space-x-3">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-4 py-2 rounded-md text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700 transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed"
+              disabled={!editedTask.title.trim()}
+            >
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`p-5 rounded-xl shadow-md border hover:shadow-lg transition-all duration-300 flex flex-col space-y-4 ${completed ? 'opacity-60 bg-slate-100 border-slate-200' : `${currentPriorityStyles.background} ${currentPriorityStyles.border}`}`}>
@@ -147,20 +258,32 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onAddComment, onDelete, onTog
               <div className="mt-2 flex items-center text-sm">
                 <CalendarIcon className="w-4 h-4 mr-1.5 text-slate-400" />
                 <span className={deadlineInfo.statusClass}>
-                  {/* FIX: Use deadlineInfo.statusText instead of statusText */}
                   {deadlineInfo.statusText ? `${deadlineInfo.statusText} el ${deadlineInfo.formattedDate}` : deadlineInfo.formattedDate}
                 </span>
               </div>
             )}
           </div>
         </div>
-        <button
-          onClick={() => onDelete(id)}
-          className="p-2 ml-4 rounded-full text-slate-400 hover:bg-red-100 hover:text-red-600 transition-colors flex-shrink-0"
-          aria-label="Eliminar tarea"
-        >
-          <TrashIcon className="w-5 h-5" />
-        </button>
+        <div className="flex items-center flex-shrink-0 ml-4">
+          <button
+            onClick={() => {
+              setIsEditing(true);
+              setEditedTask({ title, description, priority, deadline: deadline || '' });
+            }}
+            className="p-2 rounded-full text-slate-400 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+            aria-label="Editar tarea"
+            disabled={completed}
+          >
+            <PencilIcon className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => onDelete(id)}
+            className="p-2 ml-1 rounded-full text-slate-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+            aria-label="Eliminar tarea"
+          >
+            <TrashIcon className="w-5 h-5" />
+          </button>
+        </div>
       </div>
       
       <div className={`border-t border-slate-200 pt-4 ${completed ? 'pointer-events-none' : ''}`}>
